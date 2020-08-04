@@ -1,85 +1,75 @@
-import React, { Component, Fragment } from 'react';
-import {withApollo, Subscription} from 'react-apollo';
-import gql from 'graphql-tag';
+import React, { useEffect, Fragment, useState } from "react";
+import { useMutation, useSubscription, gql } from "@apollo/client";
 
-import OnlineUser from './OnlineUser';
+import OnlineUser from "./OnlineUser";
 
-class OnlineUsersWrapper extends Component {
-  constructor(props) {
-    super(props);
-    this.client = props.client;
-  }
+const OnlineUsersWrapper = () => {
+  const [onlineIndicator, setOnlineIndicator] = useState(0);
+  let onlineUsersList;
 
-  updateLastSeen() {
-    // Use the apollo client to run a mutation to update the last_seen value
-    const UPDATE_LASTSEEN_MUTATION=gql`
-      mutation updateLastSeen ($now: timestamptz!) {
-        update_users(where: {}, _set: {last_seen: $now}) {
-          affected_rows
-        }
-      }`;
-    this.client.mutate({
-      mutation: UPDATE_LASTSEEN_MUTATION,
-      variables: {now: (new Date()).toISOString()}
-    });
-  }
-
-  componentDidMount() {
+  useEffect(() => {
     // Every 30s, run a mutation to tell the backend that you're online
-    this.updateLastSeen();
-    this.onlineIndicator = setInterval(() => this.updateLastSeen(), 30000);
+    updateLastSeen();
+    setOnlineIndicator(setInterval(() => updateLastSeen(), 30000));
+
+    return () => {
+      // Clean up
+      clearInterval(onlineIndicator);
+    };
+  }, []);
+
+  const UPDATE_LASTSEEN_MUTATION = gql`
+    mutation updateLastSeen($now: timestamptz!) {
+      update_users(where: {}, _set: { last_seen: $now }) {
+        affected_rows
+      }
+    }
+  `;
+  const [updateLastSeenMutation] = useMutation(UPDATE_LASTSEEN_MUTATION);
+
+  const updateLastSeen = () => {
+    // Use the apollo client to run a mutation to update the last_seen value
+    updateLastSeenMutation({
+      variables: { now: new Date().toISOString() }
+    });
+  };
+
+  const { loading, error, data } = useSubscription(
+    gql`
+      subscription getOnlineUsers {
+        online_users(order_by: { user: { name: asc } }) {
+          id
+          user {
+            name
+          }
+        }
+      }
+    `
+  );
+
+  if (loading) {
+    return <span>Loading...</span>;
+  }
+  if (error) {
+    console.error(error);
+    return <span>Error!</span>;
+  }
+  if (data) {
+    onlineUsersList = data.online_users.map(u => (
+      <OnlineUser key={u.id} user={u.user} />
+    ));
   }
 
-  componentWillUnmount() {
-    // Clean up
-    clearInterval(this.onlineIndicator);
-  }
+  return (
+    <div className="onlineUsersWrapper">
+      <Fragment>
+        <div className="sliderHeader">
+          Online users - {onlineUsersList.length}
+        </div>
+        {onlineUsersList}
+      </Fragment>
+    </div>
+  );
+};
 
-  render() {
-    return (
-      <div className="onlineUsersWrapper">
-        <Subscription subscription={gql`
-          subscription getOnlineUsers {
-            online_users(order_by: {user: {name: asc }}) {
-              id
-              user {
-                name
-              }
-            }
-          }`}>
-          {({ loading, error, data }) => {
-            if (loading) {
-              return (<span>Loading...</span>);
-            }
-            if (error) {
-              console.error(error);
-              return (<span>Error!</span>);
-            }
-            if (data) {
-              const users = data.online_users;
-              const onlineUsersList = [];
-              users.forEach((u, index) => {
-                onlineUsersList.push(
-                  <OnlineUser
-                    key={index}
-                    index={index}
-                    user={u.user}
-                  />);
-              });
-              return (
-                <Fragment>
-                  <div className="sliderHeader">
-                    Online users - {users.length}
-                  </div>
-                  {onlineUsersList}
-                </Fragment>
-              );
-            }
-          }}
-        </Subscription>
-      </div>
-    );
-  }
-}
-
-export default withApollo(OnlineUsersWrapper);
+export default OnlineUsersWrapper;

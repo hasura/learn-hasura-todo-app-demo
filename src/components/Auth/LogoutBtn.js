@@ -1,10 +1,10 @@
-import React from 'react';
-import {Button} from "react-bootstrap";
+import React from "react";
+import { Button } from "react-bootstrap";
 
-const LogoutBtn = ({logoutHandler}) => (
+const LogoutBtn = ({ logoutHandler }) => (
   <Button
     id="qsLogoutBtn"
-    bsStyle="primary"
+    variant="primary"
     className="btn-margin logoutBtn"
     onClick={logoutHandler}
   >
