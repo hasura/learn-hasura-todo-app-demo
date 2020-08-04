@@ -37,7 +37,7 @@ const App = ({ idToken }) => {
   return (
     <ApolloProvider client={client}>
       <div>
-        <Header logoutHandler={ () => logout({returnTo: AUTH0_CONFIG.returnTo })} />
+        <Header logoutHandler={ () => logout({returnTo: AUTH_CONFIG.returnTo })} />
         <div className="row container-fluid p-left-right-0 m-left-right-0">
           <div className="row col-md-9 p-left-right-0 m-left-right-0">
             <div className="col-md-6 sliderMenu p-30">
